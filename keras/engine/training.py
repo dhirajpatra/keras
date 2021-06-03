@@ -790,7 +790,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         return_metrics[metric.name] = result
     return return_metrics
 
-  def make_train_function(self):
+  def make_train_function(self, force=False):
     """Creates a function that executes one step of training.
 
     This method can be overridden to support custom training logic.
@@ -802,7 +802,12 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     This function is cached the first time `Model.fit` or
     `Model.train_on_batch` is called. The cache is cleared whenever
-    `Model.compile` is called.
+    `Model.compile` is called. You can skip the cache and generate again the
+    function with `force=True`.
+
+    Args:
+      force: Whether to regenerate the train function and skip the cached
+        function if available.
 
     Returns:
       Function. The function created by this method should accept a
@@ -810,7 +815,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       be passed to `tf.keras.Callbacks.on_train_batch_end`, such as
       `{'loss': 0.2, 'accuracy': 0.7}`.
     """
-    if self.train_function is not None:
+    if self.train_function is not None and not force:
       return self.train_function
 
     def step_function(model, iterator):
@@ -830,7 +835,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       write_scalar_summaries(outputs, step=model._train_counter)  # pylint: disable=protected-access
       return outputs
 
-    if self._steps_per_execution.numpy().item() == 1:
+    if (self._steps_per_execution is None or
+        self._steps_per_execution.numpy().item() == 1):
 
       def train_function(iterator):
         """Runs a training execution with one step."""
@@ -1261,7 +1267,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         return_metrics[metric.name] = result
     return return_metrics
 
-  def make_test_function(self):
+  def make_test_function(self, force=False):
     """Creates a function that executes one step of evaluation.
 
     This method can be overridden to support custom evaluation logic.
@@ -1273,14 +1279,19 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     This function is cached the first time `Model.evaluate` or
     `Model.test_on_batch` is called. The cache is cleared whenever
-    `Model.compile` is called.
+    `Model.compile` is called. You can skip the cache and generate again the
+    function with `force=True`.
+
+    Args:
+      force: Whether to regenerate the test function and skip the cached
+        function if available.
 
     Returns:
       Function. The function created by this method should accept a
       `tf.data.Iterator`, and return a `dict` containing values that will
       be passed to `tf.keras.Callbacks.on_test_batch_end`.
     """
-    if self.test_function is not None:
+    if self.test_function is not None and not force:
       return self.test_function
 
     def step_function(model, iterator):
@@ -1299,7 +1310,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           outputs, self.distribute_strategy, reduction='first')
       return outputs
 
-    if self._steps_per_execution.numpy().item() == 1:
+    if (self._steps_per_execution is None or
+        self._steps_per_execution.numpy().item() == 1):
 
       def test_function(iterator):
         """Runs an evaluation execution with one step."""
@@ -1512,7 +1524,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     x, _, _ = data_adapter.unpack_x_y_sample_weight(data)
     return self(x, training=False)
 
-  def make_predict_function(self):
+  def make_predict_function(self, force=False):
     """Creates a function that executes one step of inference.
 
     This method can be overridden to support custom inference logic.
@@ -1524,13 +1536,18 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     This function is cached the first time `Model.predict` or
     `Model.predict_on_batch` is called. The cache is cleared whenever
-    `Model.compile` is called.
+    `Model.compile` is called. You can skip the cache and generate again the
+    function with `force=True`.
+
+    Args:
+      force: Whether to regenerate the predict function and skip the cached
+        function if available.
 
     Returns:
       Function. The function created by this method should accept a
       `tf.data.Iterator`, and return the outputs of the `Model`.
     """
-    if self.predict_function is not None:
+    if self.predict_function is not None and not force:
       return self.predict_function
 
     def step_function(model, iterator):
